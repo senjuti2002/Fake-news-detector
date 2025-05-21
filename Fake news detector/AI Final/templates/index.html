@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fake News Detector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        #result { transition: all 0.3s ease; }
+        .fake { background-color: #ffe6e6; border-left: 5px solid #ff4d4d; }
+        .real { background-color: #e6ffe6; border-left: 5px solid #4dff4d; }
+        textarea { min-height: 200px; transition: all 0.3s ease; }
+        .progress-bar { transition: width 0.6s ease; }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <h1 class="text-center mb-4">Fake News Detector</h1>
+        
+        <div class="card shadow">
+            <div class="card-body">
+                <textarea id="newsText" class="form-control mb-3" 
+                    placeholder="Paste news article here..."></textarea>
+                
+                <button id="analyzeBtn" class="btn btn-primary w-100">
+                    Analyze Article
+                </button>
+                
+                <div id="result" class="mt-4 p-4 rounded" style="display:none;">
+                    <h2 class="text-center">
+                        Result: <span id="predictionText"></span>
+                    </h2>
+                    <div class="text-center mb-3">
+                        Confidence: <span id="confidenceValue"></span>%
+                    </div>
+                    <div id="details" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('analyzeBtn').addEventListener('click', async () => {
+            const textarea = document.getElementById('newsText');
+            const text = textarea.value.trim();
+            if (!text) return alert('Please enter some text');
+            
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Analyzing...';
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                const result = await response.json();
+                showResult(result);
+                
+                
+                textarea.value = '';
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Analyze Article';
+            }
+        });
+
+        function showResult(result) {
+            const isFake = result.prediction === 'Fake';
+            const resultDiv = document.getElementById('result');
+            
+            
+            document.getElementById('predictionText').textContent = result.prediction;
+            document.getElementById('predictionText').className = isFake ? 'text-danger' : 'text-success';
+            document.getElementById('confidenceValue').textContent = (result.confidence * 100).toFixed(1);
+            
+            
+            resultDiv.className = isFake ? 'fake' : 'real';
+            resultDiv.style.display = 'block';
+            
+            
+            document.getElementById('details').innerHTML = `
+                <p>Probability Breakdown:</p>
+                <div class="progress mb-2">
+                    <div class="progress-bar bg-success" style="width: ${result.probabilities.Real * 100}%">
+                        Real: ${(result.probabilities.Real * 100).toFixed(1)}%
+                    </div>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar bg-danger" style="width: ${result.probabilities.Fake * 100}%">
+                        Fake: ${(result.probabilities.Fake * 100).toFixed(1)}%
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
